@@ -109,7 +109,7 @@ function parseFlow(data: Document) {
       type: "result",
       position: node.position,
       origin: [0.5, 0.5],
-      draggable: initial,
+      draggable: !initial,
       data: {
         initial,
         message,
