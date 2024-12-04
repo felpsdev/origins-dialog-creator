@@ -70,7 +70,10 @@ const Nodes = (props: NodesProps) => {
   /* Persist */
 
   useEffect(() => {
-    if (!localStorage.getItem(storageKey)) return;
+    if (!localStorage.getItem(storageKey)) {
+      setLoaded(true);
+      return;
+    }
 
     const { nodes, edges } = JSON.parse(
       localStorage.getItem(storageKey) as string
