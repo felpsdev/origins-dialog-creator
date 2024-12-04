@@ -1,52 +1,48 @@
-import { Edge, Node, Position, XYPosition } from "@xyflow/react";
-
-export interface DocumentNode {
-  id: string;
-  type: Position.Left | Position.Right;
-  position: XYPosition;
-  data: any;
-}
+import { Node, Position, XYPosition } from "@xyflow/react";
 
 export interface Document {
   npc?: string;
   location?: { x: number; y: number; z: number };
-  message: string;
   actions: Action[];
-  result: Result[];
-  creator_data: {
-    nodes: DocumentNode[];
-    edges: Edge[];
-  };
-}
-
-export interface Response {
-  message?: string;
-  actions?: Action[];
-  result?: Result[];
-  shouldClose?: boolean;
-  closeWhen?: string;
-  closeTimeout?: number;
+  results: Result[];
 }
 
 export interface Action {
-  key: string;
+  id: string;
   label: string;
-  preferred: boolean;
+  target: string;
+  node: {
+    position: XYPosition;
+    handle: ActionNode["data"]["handle"];
+  };
 }
 
 export interface Result {
-  for: string | string[];
-  response: Response;
+  id: string;
+  initial: boolean;
+  message: string;
+  preferred: string;
+  actions: string[];
+  close: {
+    enabled: boolean;
+    delay: number;
+  };
+  node: {
+    position: XYPosition;
+    handle: ResultNode["data"]["handle"];
+  };
 }
 
 export interface ResultNode extends Node {
   data: {
-    message: string;
-    preferredId: string;
-    actionsOrder: string[];
-    closeOnFinish?: boolean;
-    closeDelay?: number;
     initial: boolean;
+    message: string;
+    preferred: string;
+    order: string[];
+    close: {
+      enabled: boolean;
+      delay: number;
+    };
     handle: {
       trigger: Position.Left | Position.Right;
       actions: Position.Left | Position.Right;
@@ -63,3 +59,7 @@ export interface ActionNode extends Node {
     };
   };
 }
+
+export type RenderNode = ResultNode | ActionNode;
+
+export type NodeType = "result" | "action";

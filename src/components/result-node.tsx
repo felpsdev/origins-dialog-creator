@@ -19,11 +19,16 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect } from "react";
 import { GoTrash } from "react-icons/go";
+import { ResultNode as ResultNodeType } from "../types";
 import SwitchableHandle from "./switchable-handle";
 
-const ResultNode = (props: NodeProps) => {
+interface ResultNodeProps extends NodeProps {
+  data: ResultNodeType["data"];
+}
+
+const ResultNode = (props: ResultNodeProps) => {
   const { id, data } = props;
-  const { handle } = data as any;
+  const { handle } = data;
 
   const { updateNodeData, setNodes, setEdges, getNode, getEdges } =
     useReactFlow();
@@ -40,10 +45,10 @@ const ResultNode = (props: NodeProps) => {
     if (actionsData.length === 0) return;
 
     if (
-      !data.preferredId ||
-      !actionsData.find((acd) => acd.id === data.preferredId)
+      !data.preferred ||
+      !actionsData.find((acd) => acd.id === data.preferred)
     ) {
-      updateNodeData(id, { preferredId: actionsData[0].id });
+      updateNodeData(id, { preferred: actionsData[0].id });
     }
   }, [actionsData, data, id, updateNodeData]);
 
@@ -105,6 +110,7 @@ const ResultNode = (props: NodeProps) => {
             minRows={3}
             placeholder="Digite aqui..."
             value={data.message as string}
+            className="nodrag"
             onChange={(evt) =>
               updateNodeData(id, { message: evt.currentTarget.value })
             }
@@ -115,11 +121,10 @@ const ResultNode = (props: NodeProps) => {
           <FormControl size="sm">
             <FormLabel>Ação Principal</FormLabel>
             <Select
-              value={data.preferredId}
-              onChange={(_, value) =>
-                updateNodeData(id, { preferredId: value })
-              }
+              value={data.preferred}
+              onChange={(_, value) => updateNodeData(id, { preferred: value })}
               placeholder="Selecione"
+              className="nodrag"
             >
               {actionsData.map((row) => (
                 <Option key={row.id} value={row.id}>
@@ -135,8 +140,9 @@ const ResultNode = (props: NodeProps) => {
             <FormLabel>Ordem das ações</FormLabel>
             <Select
               multiple
-              value={data.actionsOrder as string[]}
+              value={data.order as string[]}
               placeholder="Selecione a ordem"
+              className="nodrag"
               renderValue={(selected) => (
                 <div className="flex gap-1 flex-wrap py-2">
                   {selected.map((option) => (
@@ -152,9 +158,7 @@ const ResultNode = (props: NodeProps) => {
                   ))}
                 </div>
               )}
-              onChange={(_, order) =>
-                updateNodeData(id, { actionsOrder: order })
-              }
+              onChange={(_, order) => updateNodeData(id, { order: order })}
               slotProps={{
                 listbox: {
                   sx: {
@@ -164,7 +168,7 @@ const ResultNode = (props: NodeProps) => {
               }}
             >
               {actionsData
-                .filter((row) => row.id !== data.preferredId)
+                .filter((row) => row.id !== data.preferred)
                 .map((row) => (
                   <Option
                     key={row.id}
@@ -180,25 +184,32 @@ const ResultNode = (props: NodeProps) => {
 
         {data.initial === false && actionsData.length === 0 && (
           <Checkbox
-            checked={data.closeOnFinish as boolean}
+            checked={data.close.enabled}
             onChange={(evt) =>
-              updateNodeData(id, { closeOnFinish: evt.currentTarget.checked })
+              updateNodeData(id, {
+                close: { ...data.close, enabled: evt.currentTarget.checked },
+              })
             }
             size="sm"
+            className="nodrag"
             label="Fechar ao terminar"
           />
         )}
 
-        {data.closeOnFinish === true && (
+        {data.close.enabled === true && (
           <div className="mb-2">
             <FormControl size="sm">
               <FormLabel>Delay</FormLabel>
               <Input
                 type="number"
-                value={data.closeDelay as string}
+                value={data.close.delay}
+                className="nodrag"
                 onChange={(evt) =>
                   updateNodeData(id, {
-                    closeDelay: parseInt(evt.currentTarget.value),
+                    close: {
+                      ...data.close,
+                      delay: parseInt(evt.currentTarget.value),
+                    },
                   })
                 }
                 placeholder="Digite aqui..."
@@ -209,7 +220,7 @@ const ResultNode = (props: NodeProps) => {
         )}
       </div>
 
-      {!data.closeOnFinish && (
+      {!data.close.enabled && (
         <SwitchableHandle
           label="Ações"
           position={handle.actions}

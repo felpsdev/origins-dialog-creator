@@ -1,170 +1,212 @@
-import { Edge, Node } from "@xyflow/react";
-
-/* Path -> [...[Previous-Node.id, Node.id, Action.id]] */
-type Path = Array<Array<string | null>>;
-
-interface Result {
-  for: string[];
-  response: Response;
-}
-
-interface Response {
-  message: string;
-  actions: Action[];
-  result: Result[];
-  shouldClose?: boolean;
-  closeWhen?: string;
-  closeTimeout?: number;
-}
-
-interface Action {
-  key: string;
-  label: string;
-  preferred: boolean;
-}
+import { Edge, Position, XYPosition } from "@xyflow/react";
+import {
+  Action,
+  ActionNode,
+  Document,
+  NodeType,
+  RenderNode,
+  Result,
+  ResultNode,
+} from "../types";
 
 class Render {
-  private nodes: Node[] = [];
+  private nodes: RenderNode[] = [];
   private edges: Edge[] = [];
 
-  constructor(nodes: Node[], edges: Edge[]) {
+  constructor(nodes: RenderNode[], edges: Edge[]) {
     this.nodes = nodes;
     this.edges = edges;
   }
 
   public generate() {
-    const initial = this.findInitial();
-    if (!initial) return;
+    const actions = this.resolveActions();
+    const results = this.resolveResults();
 
-    const actions = this.resolveActions(initial);
-    const response = this.resolveResponse(initial, actions, [
-      [null, initial.id, null],
-    ]);
-
-    return response;
+    return { actions, results };
   }
 
-  private findInitial() {
-    return this.nodes.find((row) => row.data.initial === true);
+  /* Results */
+
+  private resolveResultActions(resultId: string) {
+    const connections = this.edges.filter(
+      (ed) => ed.source === resultId && ed.sourceHandle === "result_actions"
+    );
+    return connections.map((ed) => ed.target);
+  }
+
+  private resolveResults(): Result[] {
+    return this.nodes
+      .filter((nd) => nd.type === "result")
+      .map((nd) => {
+        const actions = this.resolveResultActions(nd.id);
+        const {
+          initial = false,
+          message,
+          preferred,
+          order,
+          close,
+          handle,
+        } = nd.data as ResultNode["data"];
+
+        const ordered = [
+          preferred,
+          ...actions
+            .filter((ac) => ac !== preferred)
+            .sort((a, b) => order.indexOf(a) - order.indexOf(b)),
+        ];
+
+        return {
+          id: nd.id,
+          initial,
+          message,
+          preferred,
+          actions: ordered,
+          close,
+          node: { position: nd.position, handle },
+        };
+      });
   }
 
   /* Actions */
 
-  private formatActions(actions: Node[], preferredId: string): Action[] {
-    return actions.map((row) => ({
-      key: row.id as string,
-      label: row.data.label as string,
-      preferred: row.id === preferredId,
-    }));
+  private resolveActionTarget(actionId: string) {
+    const connection = this.edges.find(
+      (ed) => ed.source === actionId && ed.sourceHandle === "action_result"
+    );
+    return connection?.target;
   }
 
-  private resolveActions(target: Node) {
-    return this.edges
-      .filter((ed) => ed.source === target.id)
-      .map((ed) =>
-        this.nodes.find((nd) => nd.id === ed.target && nd.type === "action")
-      ) as Node[];
-  }
+  private resolveActions(): Action[] {
+    return this.nodes
+      .filter((nd) => nd.type === "action")
+      .map((nd) => {
+        const { label, handle } = nd.data as ActionNode["data"];
+        const target = this.resolveActionTarget(nd.id);
+        if (!target) return;
 
-  private resolveResponse(
-    current: Node,
-    actions: Node[],
-    path: Path
-  ): Response {
-    const invalidActions = [] as string[];
-    const cache = {} as Record<string, Result>;
-
-    actions.map((ac) => {
-      const targetEdge = this.edges.find(
-        (row) => row.source === ac.id && row.targetHandle === "result_trigger"
-      );
-      const targetNode = this.nodes.find((nd) => nd.id === targetEdge?.target);
-      if (!targetNode) {
-        invalidActions.push(ac.id);
-        return;
-      }
-
-      /* Already Cached */
-      if (cache[targetNode.id]) {
-        cache[targetNode.id].for.push(ac.id);
-        return;
-      }
-
-      let targetActions = this.resolveActions(targetNode);
-
-      /* Target  */
-      if (targetNode.id === current.id) {
-        targetActions.splice(targetActions.indexOf(ac), 1);
-      }
-
-      /* Same target */
-      const sameTarget = path.filter(
-        (pt) => pt[0] === targetNode.id && pt[1] === targetNode.id
-      );
-      if (sameTarget.length > 0) {
-        sameTarget.map(
-          (pt) =>
-            (targetActions = targetActions.filter((tac) => tac.id !== pt[2]))
-        );
-      }
-
-      /* Already on path */
-      const alreadyOnPath = path.find(
-        (pt) => pt[0] === targetNode.id && pt[1] && pt[2]
-      );
-      if (alreadyOnPath) {
-        targetActions = targetActions.filter(
-          (tac) => tac.id !== alreadyOnPath[2]
-        );
-      }
-
-      const targetResponse = this.resolveResponse(targetNode, targetActions, [
-        ...path,
-        [current.id, targetNode.id, ac.id],
-      ]);
-
-      cache[targetNode.id] = {
-        for: [ac.id],
-        response: targetResponse,
-      };
-
-      return cache[targetNode.id];
-    });
-
-    const { message, preferredId, actionsOrder, ...currentData } = current.data;
-
-    /* Validating/Sorting actions */
-    const order = actionsOrder as string[];
-    let validActions = actions
-      .filter((ac) => !invalidActions.includes(ac.id))
-      .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-
-    /* Sorting preferred */
-    const preferred = validActions.find((vac) => vac.id === preferredId);
-    if (preferred) {
-      validActions = validActions.filter((row) => row.id !== preferredId);
-      validActions.splice(0, 0, preferred);
-    }
-
-    const response = {
-      message: message as string,
-      actions: this.formatActions(validActions, preferredId as string),
-      result: Object.values(cache),
-    } as Response;
-
-    /* Close on finish */
-    if (currentData.closeOnFinish || validActions.length === 0) {
-      response.shouldClose = true;
-      response.closeWhen = "finish";
-      response.closeTimeout = (currentData.closeDelay || 1000) as number;
-    }
-
-    return response;
+        return {
+          id: nd.id,
+          label,
+          target,
+          node: { position: nd.position, handle },
+        };
+      })
+      .filter((p) => p !== undefined);
   }
 }
 
-function renderFlow(nodes: Node[], edges: Edge[]) {
+/* Parsing */
+
+function parseFlow(data: Document) {
+  const nodes = [] as RenderNode[];
+  const edges = [] as Edge[];
+
+  data.results.map((res) => {
+    const { initial, id, message, preferred, actions, close, node } = res;
+
+    nodes.push({
+      id,
+      type: "result",
+      position: node.position,
+      origin: [0.5, 0.5],
+      draggable: initial,
+      data: {
+        initial,
+        message,
+        preferred,
+        order: actions.filter((r) => r !== preferred),
+        close,
+        handle: node.handle,
+      },
+    });
+
+    actions.map((ac) => {
+      edges.push({
+        id: `${id}-${ac}`,
+        source: id,
+        type: "step",
+        sourceHandle: "result_actions",
+        target: ac,
+        targetHandle: "action_owner",
+      });
+    });
+  });
+
+  data.actions.map((act) => {
+    const { id, label, target, node } = act;
+
+    nodes.push({
+      id,
+      type: "action",
+      position: node.position,
+      origin: [0.5, 0.5],
+      data: {
+        label: label,
+        handle: node.handle,
+      },
+    });
+
+    edges.push({
+      id: `${id}-${target}`,
+      type: "step",
+      animated: true,
+      source: id,
+      sourceHandle: "action_result",
+      target: target,
+      targetHandle: "result_trigger",
+    });
+  });
+
+  return { nodes, edges };
+}
+
+/* Rendering */
+
+function renderFlow(nodes: RenderNode[], edges: Edge[]) {
   return new Render(nodes, edges).generate();
 }
 
-export default { renderFlow };
+/* Create */
+
+function createNode<T extends NodeType>(
+  type: T,
+  position: XYPosition,
+  id?: string
+): T extends "result" ? ResultNode : ActionNode {
+  let defaultData = {};
+
+  switch (type) {
+    case "action":
+      defaultData = {
+        label: "",
+        handle: {
+          owner: Position.Left,
+          result: Position.Right,
+        },
+      } as ActionNode["data"];
+      break;
+
+    case "result":
+      defaultData = {
+        initial: false,
+        message: "",
+        preferred: "",
+        order: [],
+        close: { enabled: false, delay: 1000 },
+        handle: {
+          trigger: Position.Left,
+          actions: Position.Right,
+        },
+      } as ResultNode["data"];
+  }
+
+  return {
+    id: id || crypto.randomUUID(),
+    type,
+    position,
+    origin: [0.5, 0.5],
+    data: defaultData,
+  } as T extends "result" ? ResultNode : ActionNode;
+}
+
+export default { renderFlow, parseFlow, createNode };

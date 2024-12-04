@@ -48,7 +48,7 @@ const SettingsModal = (props: SettingsModalProps) => {
         <DialogContent>
           <div className="flex flex-col gap-4">
             <FormControl>
-              <FormLabel>Nome do dialogo</FormLabel>
+              <FormLabel>Nome do diálogo</FormLabel>
 
               <Input
                 placeholder="Digite aqui"
@@ -126,7 +126,7 @@ const SettingsModal = (props: SettingsModalProps) => {
             </FormControl>
 
             <FormControl disabled={!settings.locationEnabled}>
-              <FormLabel>Id no npc</FormLabel>
+              <FormLabel>Id no NPC</FormLabel>
 
               <Input
                 placeholder="Digite aqui"

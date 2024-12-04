@@ -86,6 +86,7 @@ const ActionNode = (props: NodeProps) => {
             onChange={(evt) =>
               updateNodeData(id, { label: evt.currentTarget.value })
             }
+            className="nodrag"
             placeholder="Digite aqui..."
           />
         </FormControl>

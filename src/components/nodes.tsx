@@ -7,7 +7,6 @@ import {
   OnConnect,
   OnEdgesChange,
   OnNodesChange,
-  Position,
   ReactFlow,
   useReactFlow,
 } from "@xyflow/react";
@@ -23,6 +22,7 @@ import {
 } from "react";
 import { GoCodeSquare, GoCrossReference } from "react-icons/go";
 import { ActionNode, ResultNode } from "../types";
+import render from "../utils/render";
 import ActionNodeComponent from "./action-node";
 import ResultNodeComponent from "./result-node";
 
@@ -47,7 +47,7 @@ const Nodes = (props: NodesProps) => {
     []
   );
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const [loaded, setLoaded] = useState(false);
 
   const onConnect: OnConnect = useCallback(
@@ -56,6 +56,7 @@ const Nodes = (props: NodesProps) => {
         addEdge(
           {
             ...connection,
+            type: "smoothstep",
             animated:
               connection.sourceHandle === "action_result" &&
               connection.targetHandle === "result_trigger",
@@ -69,31 +70,27 @@ const Nodes = (props: NodesProps) => {
   /* Persist */
 
   useEffect(() => {
-    const nodes = localStorage.getItem(`${storageKey}.nodes`);
-    if (nodes) {
-      const parsed = JSON.parse(nodes);
-      setNodes(parsed);
-    }
+    if (!localStorage.getItem(storageKey)) return;
 
-    const edges = localStorage.getItem(`${storageKey}.edges`);
-    if (edges) {
-      const parsed = JSON.parse(edges);
-      setEdges(parsed);
-    }
+    const { nodes, edges } = JSON.parse(
+      localStorage.getItem(storageKey) as string
+    );
+
+    if (nodes) setNodes(nodes);
+    if (edges) setEdges(edges.map((e: Edge) => ({ ...e, type: "step" })));
 
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (loaded) {
-      localStorage.setItem(`${storageKey}.nodes`, JSON.stringify(nodes));
-      localStorage.setItem(`${storageKey}.edges`, JSON.stringify(edges));
+      localStorage.setItem(storageKey, JSON.stringify({ nodes, edges }));
     }
   }, [nodes, edges, loaded]);
 
   /* Handling */
 
-  const handleGetCenter = useCallback(() => {
+  const handleGetCenterPoint = useCallback(() => {
     const bounding = flowRef.current?.getBoundingClientRect();
     if (!bounding) return;
 
@@ -106,57 +103,39 @@ const Nodes = (props: NodesProps) => {
   }, [flowRef, screenToFlowPosition]);
 
   const handleCreateResult = useCallback(() => {
-    const pos = handleGetCenter();
+    const pos = handleGetCenterPoint();
     if (!pos) return;
 
-    setNodes((nds) => [
-      ...nds,
-      {
-        id: crypto.randomUUID(),
-        type: "result",
-        position: { x: pos.x, y: pos.y },
-        origin: [0.5, 0.5],
-        data: {
-          message: "",
-          preferredId: "",
-          actionsOrder: [],
-          closeOnFinish: false,
-          initial: nds.length === 0,
-          closeDelay: 1000,
-          handle: {
-            trigger: Position.Left,
-            actions: Position.Right,
-          },
-        },
-      },
-    ]);
-  }, [handleGetCenter, setNodes]);
+    const node = render.createNode("result", pos);
+    if (
+      nodes.filter(
+        (nd: any) => nd.type === "result" && nd.data.initial === true
+      ).length === 0
+    ) {
+      node.data.initial = true;
+      node.draggable = false;
+      node.position = { x: 0, y: 0 };
+    }
+
+    setNodes((nds) => [...nds, node]);
+    if (nodes.length === 0) {
+      setTimeout(() => fitView(), 20);
+    }
+  }, [nodes, fitView, handleGetCenterPoint, setNodes]);
 
   const handleCreateAction = useCallback(() => {
-    const pos = handleGetCenter();
+    const pos = handleGetCenterPoint();
     if (!pos) return;
 
-    setNodes((nds) => [
-      ...nds,
-      {
-        id: crypto.randomUUID(),
-        type: "action",
-        position: { x: pos.x, y: pos.y },
-        origin: [0.5, 0.5],
-        data: {
-          label: "",
-          handle: {
-            owner: Position.Left,
-            result: Position.Right,
-          },
-        },
-      },
-    ]);
-  }, [handleGetCenter, setNodes]);
+    const node = render.createNode("action", pos);
+
+    setNodes((nds) => [...nds, node]);
+  }, [handleGetCenterPoint, setNodes]);
 
   return (
     <ReactFlow
       ref={flowRef}
+      minZoom={0.2}
       className="w-full h-full  border-2 border-zinc-800 select-none"
       colorMode="dark"
       nodes={nodes}

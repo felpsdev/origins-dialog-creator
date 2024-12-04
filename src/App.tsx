@@ -8,7 +8,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCallback, useState } from "react";
 import toast from "react-hot-toast";
-import { GoDownload, GoFoldUp, GoGear } from "react-icons/go";
+import { GoDownload, GoFoldUp, GoGear, GoMilestone } from "react-icons/go";
 import { useRecoilState } from "recoil";
 import Nodes from "./components/nodes";
 import SettingsModal from "./components/settings-modal";
@@ -27,68 +27,62 @@ function App() {
   >([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  /* Actions */
-  const [loading, setLoading] = useState(false);
+  /* Save */
+  const [saving, setSaving] = useState(false);
 
-  const handleSaveFile = useCallback(() => {
-    if (loading) return;
+  const handleSaveDialog = useCallback(() => {
+    if (saving) return;
+
+    setSaving(true);
+
+    function cancel(reason?: string) {
+      setSaving(false);
+      if (reason) toast.error(reason);
+    }
 
     if (!settings.name || settings.name === "") {
-      toast.error("Nome do diálogo não foi setado.");
-      return;
+      return cancel("Nome do diálogo não foi setado.");
+    }
+
+    if (!settings.locationEnabled || !settings.npc || settings.npc === "") {
+      return cancel("A posição do diálogo não foi setada corretamente");
     }
 
     if (nodes.length === 0 || edges.length === 0) {
-      toast.error("O diálogo não possui ações válidas para ser salvo.");
-      return;
+      return cancel("O diálogo não possui ações válidas para ser salvo.");
     }
 
-    setLoading(true);
+    const { actions, results } = render.renderFlow(nodes, edges);
+    const document = {
+      npc: settings.npc,
+      location: settings.location,
+      actions,
+      results,
+    };
 
-    try {
-      const response = render.renderFlow(nodes, edges);
-      const document = {
-        ...response,
-        creator_data: {
-          nodes: nodes.map((nd) => ({
-            id: nd.id,
-            type: nd.type,
-            position: nd.position,
-            data: nd.data,
-          })),
-          edges,
-        },
-      } as Document;
+    const a = window.document.createElement("a");
+    const file = new Blob([JSON.stringify(document)], { type: "text/plain" });
 
-      if (!document) {
-        setLoading(false);
-        return toast.error("Não foi possível renderizar a arvóre do diálogo.");
-      }
+    a.href = URL.createObjectURL(file);
+    a.download = `${settings.name}.json`;
+    a.click();
 
-      if (settings.locationEnabled) {
-        document.location = settings.location;
-        if (settings.npc) document.npc = settings.npc;
-      }
+    toast.success("Arquivo do diálogo foi baixado.");
+    setSaving(false);
+  }, [settings, edges, nodes, saving]);
 
-      const a = window.document.createElement("a");
-      const file = new Blob([JSON.stringify(document)], { type: "text/plain" });
+  /* Import */
+  const [importing, setImporting] = useState(false);
 
-      a.href = URL.createObjectURL(file);
-      a.download = `${settings.name}.json`;
-      a.click();
+  const handleImportDialog = useCallback(() => {
+    if (importing) return;
 
-      toast.success("Arquivo do diálogo foi baixado.");
-    } catch (error: any) {
-      toast.error("Algum erro ocorreu na renderização do diálogo", error);
+    setImporting(true);
+
+    function cancel(reason?: string) {
+      setImporting(false);
+      if (reason) toast.error(reason);
     }
-
-    setLoading(false);
-  }, [settings, nodes, edges, loading]);
-
-  const handleImportFile = useCallback(() => {
-    if (loading) return;
-
-    setLoading(true);
 
     const input = document.createElement("input");
 
@@ -99,33 +93,17 @@ function App() {
     input.onchange = async () => {
       const file = [...(input.files || [])][0];
       if (!file) {
-        setLoading(false);
-        toast.error("Arquivo do diálogo não foi selecionado.");
-        return;
+        return cancel("Arquivo do diálogo não foi selecionado.");
       }
 
       const content = await file.text();
       if (!content || content === "") {
-        setLoading(false);
-        toast.error("Arquivo do diálogo vazio.");
-        return;
+        return cancel("Arquivo do diálogo vazio.");
       }
 
       const data = JSON.parse(content) as Document;
-      if (!data) {
-        setLoading(false);
-        toast.error("Arquivo inválido ou corrompido.");
-        return;
-      }
-
-      if (
-        !data.creator_data ||
-        !data.creator_data.nodes ||
-        !data.creator_data.edges
-      ) {
-        setLoading(false);
-        toast.error("Arquivo não suportado para importação");
-        return;
+      if (!data || !data.actions || !data.results) {
+        return cancel("Arquivo inválido ou corrompido.");
       }
 
       /* Settings */
@@ -146,21 +124,27 @@ function App() {
       }
 
       /* Nodes, Edges */
-      const { nodes, edges } = data.creator_data;
+      const { nodes, edges } = render.parseFlow(data);
 
-      setNodes(nodes.map((nd) => ({ ...nd, origin: [0.5, 0.5] })));
+      setNodes(nodes);
       setEdges(edges);
       flow.fitView();
 
       toast.success(`Diálogo ${file.name.split(".")[0]} foi importado`);
-      setLoading(false);
+      setImporting(false);
     };
 
-    input.oncancel = () => setLoading(false);
-    input.onerror = () => setLoading(false);
+    input.oncancel = () => setImporting(false);
+    input.onerror = () => setImporting(false);
 
     input.click();
-  }, [loading, setSettings, setNodes, setEdges]);
+  }, [importing, flow, setImporting, setEdges, setNodes, setSettings]);
+
+  /* Reset */
+  const handleReset = useCallback(() => {
+    setEdges([]);
+    setNodes([]);
+  }, [setEdges, setNodes]);
 
   return (
     <div className="w-full h-full bg-zinc-900 flex flex-col gap-4 p-8">
@@ -179,15 +163,24 @@ function App() {
       <div className="flex flex-col gap-2 h-full overflow-y-auto">
         <div className="flex w-full">
           <Typography level="h4">Roteiro do Diálogo</Typography>
-          <Button
-            size="sm"
-            startDecorator={<GoGear />}
-            color="neutral"
-            onClick={() => setSettingsOpen(true)}
-            className="!ml-auto !mr-0"
-          >
-            Configurações
-          </Button>
+          <div className="flex gap-2 !ml-auto !mr-0">
+            <Button
+              size="sm"
+              startDecorator={<GoMilestone />}
+              color="neutral"
+              onClick={handleReset}
+            >
+              Resetar
+            </Button>
+            <Button
+              size="sm"
+              startDecorator={<GoGear />}
+              color="neutral"
+              onClick={() => setSettingsOpen(true)}
+            >
+              Configurações
+            </Button>
+          </div>
         </div>
         <div className="w-full h-full">
           <Nodes
@@ -203,17 +196,17 @@ function App() {
 
       <div className="flex gap-2 w-full min-h-fit">
         <Button
-          onClick={handleSaveFile}
-          loading={loading}
+          onClick={handleSaveDialog}
+          loading={saving}
           startDecorator={<GoDownload size={20} />}
           size="lg"
         >
           Baixar arquivo
         </Button>
         <Button
-          onClick={handleImportFile}
           color="neutral"
-          loading={loading}
+          onClick={handleImportDialog}
+          loading={importing}
           startDecorator={<GoFoldUp size={20} />}
           size="lg"
         >
