@@ -34,10 +34,6 @@ const ResultNode = (props: NodeProps) => {
     type: "source",
     id: "result_actions",
   });
-  const triggers = useHandleConnections({
-    type: "target",
-    id: "result_trigger",
-  });
   const actionsData = useNodesData(actions.map((row) => row.target));
 
   useEffect(() => {
