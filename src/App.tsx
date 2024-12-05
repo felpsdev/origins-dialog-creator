@@ -116,7 +116,10 @@ function App() {
       if (data.location) {
         setSettings((state) => ({
           ...state,
-          location: data.location as Settings["location"],
+          location: {
+            ...state.location,
+            ...data.location,
+          } as Settings["location"],
           locationEnabled: true,
         }));
       } else {

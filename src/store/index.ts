@@ -11,6 +11,7 @@ export interface Settings {
     x: number;
     y: number;
     z: number;
+    rotation: number;
   };
 }
 
@@ -19,7 +20,7 @@ export const settingsAtom = atom<Settings>({
   default: {
     name: "",
     locationEnabled: true,
-    location: { x: 0, y: 0, z: 0 },
+    location: { x: 0, y: 0, z: 0, rotation: 0 },
   },
   effects_UNSTABLE: [persistAtom],
 });

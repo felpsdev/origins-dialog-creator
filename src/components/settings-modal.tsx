@@ -25,7 +25,7 @@ const SettingsModal = (props: SettingsModalProps) => {
   const [settings, setSettings] = useRecoilState(settingsAtom);
 
   const handleChangeCoord = useCallback(
-    (coord: "x" | "y" | "z", value: number) => {
+    (coord: "x" | "y" | "z" | "rotation", value: number) => {
       setSettings((state) => ({
         ...state,
         location: {
@@ -118,10 +118,22 @@ const SettingsModal = (props: SettingsModalProps) => {
                     )
                   }
                 />
+                <Input
+                  placeholder="Rotação"
+                  type="number"
+                  disabled={!settings.locationEnabled}
+                  value={settings.location.rotation}
+                  onChange={(event) =>
+                    handleChangeCoord(
+                      "rotation",
+                      parseFloat(event.currentTarget.value)
+                    )
+                  }
+                />
               </div>
 
               <FormHelperText>
-                Posição X,Y,Z no mundo do minecraft
+                Posição X,Y,Z,R(Rotação) no mundo do minecraft
               </FormHelperText>
             </FormControl>
 
