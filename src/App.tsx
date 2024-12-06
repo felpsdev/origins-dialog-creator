@@ -44,7 +44,7 @@ function App() {
       return cancel("Nome do diálogo não foi setado.");
     }
 
-    if (!settings.locationEnabled || !settings.npc || settings.npc === "") {
+    if (settings.interactionEnabled && (!settings.npc || settings.npc === "")) {
       return cancel("A posição do diálogo não foi setada corretamente");
     }
 
@@ -55,10 +55,14 @@ function App() {
     const { actions, results } = render.renderFlow(nodes, edges);
     const document = {
       npc: settings.npc,
-      location: settings.location,
+      interaction: undefined as Settings["interaction"] | undefined,
       actions,
       results,
     };
+
+    if (settings.interactionEnabled) {
+      document.interaction = settings.interaction;
+    }
 
     const a = window.document.createElement("a");
     const file = new Blob([JSON.stringify(document)], { type: "text/plain" });
@@ -107,23 +111,32 @@ function App() {
       }
 
       /* Settings */
-      setSettings((state) => ({ ...state, name: file.name.split(".")[0] }));
+      setSettings((state) => ({
+        ...state,
+        name: file.name.split(".")[0],
+        npc: data.npc || "",
+      }));
 
-      if (data.npc) {
-        setSettings((state) => ({ ...state, npc: data.npc }));
-      }
-
-      if (data.location) {
+      if (data.interaction) {
         setSettings((state) => ({
           ...state,
-          location: {
-            ...state.location,
-            ...data.location,
-          } as Settings["location"],
-          locationEnabled: true,
+          interaction: data.interaction as Settings["interaction"],
+          interactionEnabled: true,
         }));
-      } else {
-        setSettings((state) => ({ ...state, locationEnabled: false }));
+      }
+
+      /* Support to old versions */
+      const _old_location = (data as any).location;
+      if (_old_location) {
+        const interaction = {} as Settings["interaction"];
+        interaction.location = { ..._old_location, world: "world" };
+        interaction.renderDistance = 15;
+
+        setSettings((state) => ({
+          ...state,
+          interaction: interaction,
+          interactionEnabled: true,
+        }));
       }
 
       /* Nodes, Edges */

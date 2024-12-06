@@ -5,13 +5,17 @@ const { persistAtom } = recoilPersist();
 
 export interface Settings {
   name: string;
-  npc?: string;
-  locationEnabled: boolean;
-  location: {
-    x: number;
-    y: number;
-    z: number;
-    rotation: number;
+  npc: string;
+  interactionEnabled: boolean;
+  interaction: {
+    location: {
+      x: number;
+      y: number;
+      z: number;
+      rotation: number;
+      world: string;
+    };
+    renderDistance: number;
   };
 }
 
@@ -19,8 +23,12 @@ export const settingsAtom = atom<Settings>({
   key: "settings",
   default: {
     name: "",
-    locationEnabled: true,
-    location: { x: 0, y: 0, z: 0, rotation: 0 },
+    npc: "",
+    interactionEnabled: true,
+    interaction: {
+      location: { x: 0, y: 0, z: 0, rotation: 0, world: "world" },
+      renderDistance: 15,
+    },
   },
   effects_UNSTABLE: [persistAtom],
 });

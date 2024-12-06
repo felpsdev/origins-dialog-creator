@@ -11,8 +11,8 @@ import {
   ModalClose,
   ModalDialog,
 } from "@mui/joy";
-import { useCallback } from "react";
-import { useRecoilState } from "recoil";
+import { useCallback, useEffect } from "react";
+import { useRecoilState, useResetRecoilState } from "recoil";
 import { settingsAtom } from "../store";
 
 interface SettingsModalProps {
@@ -23,19 +23,30 @@ interface SettingsModalProps {
 const SettingsModal = (props: SettingsModalProps) => {
   const { open, onClose } = props;
   const [settings, setSettings] = useRecoilState(settingsAtom);
+  const resetSettings = useResetRecoilState(settingsAtom);
 
-  const handleChangeCoord = useCallback(
-    (coord: "x" | "y" | "z" | "rotation", value: number) => {
+  const handleChangeLocation = useCallback(
+    (
+      identifier: "x" | "y" | "z" | "rotation" | "world",
+      value: number | string
+    ) => {
       setSettings((state) => ({
         ...state,
-        location: {
-          ...state.location,
-          [coord]: value,
+        interaction: {
+          ...state.interaction,
+          location: {
+            ...state.interaction.location,
+            [identifier]: value,
+          },
         },
       }));
     },
     [setSettings]
   );
+
+  useEffect(() => {
+    if (!settings.interaction) resetSettings();
+  }, [settings, resetSettings]);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -46,7 +57,7 @@ const SettingsModal = (props: SettingsModalProps) => {
         <Divider />
 
         <DialogContent>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 w-full">
             <FormControl>
               <FormLabel>Nome do diálogo</FormLabel>
 
@@ -66,17 +77,18 @@ const SettingsModal = (props: SettingsModalProps) => {
               </FormHelperText>
             </FormControl>
 
-            <FormControl>
+            <FormControl required disabled={!settings.interactionEnabled}>
               <div className="flex w-full">
                 <FormLabel>Posição</FormLabel>
                 <Checkbox
                   onChange={(event) =>
                     setSettings((state) => ({
                       ...state,
-                      locationEnabled: event.currentTarget.checked,
+                      interactionEnabled: event.currentTarget.checked,
                     }))
                   }
-                  checked={settings.locationEnabled}
+                  disabled={false}
+                  checked={settings.interactionEnabled}
                   className="ml-auto mr-0.5"
                 />
               </div>
@@ -85,10 +97,9 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="X"
                   type="number"
-                  disabled={!settings.locationEnabled}
-                  value={settings.location.x}
+                  value={settings.interaction.location.x}
                   onChange={(event) =>
-                    handleChangeCoord(
+                    handleChangeLocation(
                       "x",
                       parseFloat(event.currentTarget.value)
                     )
@@ -97,10 +108,9 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="Y"
                   type="number"
-                  disabled={!settings.locationEnabled}
-                  value={settings.location.y}
+                  value={settings.interaction.location.y}
                   onChange={(event) =>
-                    handleChangeCoord(
+                    handleChangeLocation(
                       "y",
                       parseFloat(event.currentTarget.value)
                     )
@@ -109,10 +119,9 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="Z"
                   type="number"
-                  disabled={!settings.locationEnabled}
-                  value={settings.location.z}
+                  value={settings.interaction.location.z}
                   onChange={(event) =>
-                    handleChangeCoord(
+                    handleChangeLocation(
                       "z",
                       parseFloat(event.currentTarget.value)
                     )
@@ -121,10 +130,9 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="Rotação"
                   type="number"
-                  disabled={!settings.locationEnabled}
-                  value={settings.location.rotation}
+                  value={settings.interaction.location.rotation}
                   onChange={(event) =>
-                    handleChangeCoord(
+                    handleChangeLocation(
                       "rotation",
                       parseFloat(event.currentTarget.value)
                     )
@@ -132,12 +140,47 @@ const SettingsModal = (props: SettingsModalProps) => {
                 />
               </div>
 
-              <FormHelperText>
-                Posição X,Y,Z,R(Rotação) no mundo do minecraft
-              </FormHelperText>
+              <FormHelperText>Posição no mundo do minecraft</FormHelperText>
             </FormControl>
 
-            <FormControl disabled={!settings.locationEnabled}>
+            <div className="flex gap-2 w-full">
+              <div className="w-[55%]">
+                <FormControl disabled={!settings.interactionEnabled}>
+                  <FormLabel>Distancia de Renderização</FormLabel>
+                  <Input
+                    placeholder="Digite aqui"
+                    type="number"
+                    value={settings.interaction.renderDistance}
+                    onChange={(event) =>
+                      setSettings((state) => ({
+                        ...state,
+                        interaction: {
+                          ...state.interaction,
+                          renderDistance: parseFloat(event.currentTarget.value),
+                        },
+                      }))
+                    }
+                  />
+                  <FormHelperText>Renderização da interação</FormHelperText>
+                </FormControl>
+              </div>
+
+              <div className="w-[45%]">
+                <FormControl required disabled={!settings.interactionEnabled}>
+                  <FormLabel>Mundo</FormLabel>
+                  <Input
+                    placeholder="Digite aqui"
+                    value={settings.interaction.location.world}
+                    onChange={(event) =>
+                      handleChangeLocation("world", event.currentTarget.value)
+                    }
+                  />
+                  <FormHelperText>Mundo da da posição</FormHelperText>
+                </FormControl>
+              </div>
+            </div>
+
+            <FormControl required disabled={!settings.interactionEnabled}>
               <FormLabel>Id no NPC</FormLabel>
 
               <Input
@@ -152,7 +195,7 @@ const SettingsModal = (props: SettingsModalProps) => {
               />
 
               <FormHelperText>
-                Npc relacionado ao dialogo e as coordenadas
+                Npc relacionado ao diálogo e as coordenadas
               </FormHelperText>
             </FormControl>
           </div>

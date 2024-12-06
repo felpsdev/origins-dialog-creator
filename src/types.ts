@@ -1,8 +1,9 @@
 import { Node, Position, XYPosition } from "@xyflow/react";
+import { Settings } from "./store";
 
 export interface Document {
-  npc?: string;
-  location?: { x: number; y: number; z: number };
+  npc: string;
+  interaction?: Settings["interaction"];
   actions: Action[];
   results: Result[];
 }
