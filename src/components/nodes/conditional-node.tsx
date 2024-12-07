@@ -53,25 +53,6 @@ const conditions = {
   },
 };
 
-const values = {
-  account: {
-    label: "Conta",
-    key: true,
-  },
-  inventory: {
-    label: "Inventário",
-    key: true,
-  },
-  dialog_store: {
-    label: "dialog_store",
-    key: true,
-  },
-  xp: {
-    label: "Experiência (XP)",
-    key: false,
-  },
-};
-
 interface ConditionalNodeProps extends NodeProps {
   data: ConditionalNodeType["data"];
 }
