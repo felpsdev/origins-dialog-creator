@@ -2,27 +2,48 @@ import { Edge, Position, XYPosition } from "@xyflow/react";
 import {
   Action,
   ActionNode,
+  Condition,
+  ConditionalNode,
   Document,
-  NodeType,
-  RenderNode,
+  FlowNode,
+  FlowNodeType,
+  FlowNodeTypeRelation,
   Result,
   ResultNode,
 } from "../types";
 
 class Render {
-  private nodes: RenderNode[] = [];
+  private nodes: FlowNode[] = [];
   private edges: Edge[] = [];
 
-  constructor(nodes: RenderNode[], edges: Edge[]) {
+  constructor(nodes: FlowNode[], edges: Edge[]) {
     this.nodes = nodes;
     this.edges = edges;
   }
 
   public generate() {
+    const initial = this.resolveInitial();
+    if (!initial) return null;
+
     const actions = this.resolveActions();
     const results = this.resolveResults();
+    const conditions = this.resolveConditions();
 
-    return { actions, results };
+    return { initial, actions, results, conditions };
+  }
+
+  /* Intial */
+
+  private resolveInitial() {
+    const connection = this.edges.find(
+      (ed) => ed.source === "INITIAL" && ed.sourceHandle === "initial_target"
+    );
+    if (!connection?.target) return false;
+
+    const target = this.nodes.find((nd) => nd.id === connection?.target);
+    if (!target) return false;
+
+    return { id: target.id, type: target.type };
   }
 
   /* Results */
@@ -39,14 +60,8 @@ class Render {
       .filter((nd) => nd.type === "result")
       .map((nd) => {
         const actions = this.resolveResultActions(nd.id);
-        const {
-          initial = false,
-          message,
-          preferred,
-          order,
-          close,
-          handle,
-        } = nd.data as ResultNode["data"];
+        const { message, preferred, order, executor, close, handle } =
+          nd.data as ResultNode["data"];
 
         const ordered = [
           preferred,
@@ -57,10 +72,10 @@ class Render {
 
         return {
           id: nd.id,
-          initial,
           message,
           preferred,
           actions: ordered,
+          executor,
           close,
           node: { position: nd.position, handle },
         };
@@ -93,28 +108,72 @@ class Render {
       })
       .filter((p) => p !== undefined);
   }
+
+  /* Actions */
+
+  private resolveConditionTarget(actionId: string) {
+    const trueConnection = this.edges.find(
+      (ed) => ed.source === actionId && ed.sourceHandle === "condition_true"
+    );
+
+    const falseConnection = this.edges.find(
+      (ed) => ed.source === actionId && ed.sourceHandle === "condition_false"
+    );
+
+    return { true: trueConnection?.target, false: falseConnection?.target };
+  }
+
+  private resolveConditions(): Condition[] {
+    return this.nodes
+      .filter((nd) => nd.type === "conditional")
+      .map((nd) => {
+        const { value, condition, handle, objective } =
+          nd.data as ConditionalNode["data"];
+
+        const target = this.resolveConditionTarget(nd.id);
+        if (!target.true || !target.false) return;
+
+        return {
+          id: nd.id,
+          value,
+          condition,
+          objective,
+          target,
+          node: { position: nd.position, handle },
+        };
+      })
+      .filter((p) => p !== undefined);
+  }
 }
 
 /* Parsing */
 
 function parseFlow(data: Document) {
-  const nodes = [] as RenderNode[];
+  const nodes = [
+    {
+      id: "INITIAL",
+      type: "initial",
+      origin: [0.5, 0.5],
+      position: { x: 0, y: 0 },
+      draggable: false,
+      data: {},
+    },
+  ] as FlowNode[];
   const edges = [] as Edge[];
 
   data.results.map((res) => {
-    const { initial, id, message, preferred, actions, close, node } = res;
+    const { id, message, preferred, actions, close, node } = res;
 
     nodes.push({
       id,
       type: "result",
       position: node.position,
       origin: [0.5, 0.5],
-      draggable: !initial,
       data: {
-        initial,
         message,
         preferred,
         order: actions.filter((r) => r !== preferred),
+        executor: res.executor || [],
         close,
         handle: node.handle,
       },
@@ -123,14 +182,83 @@ function parseFlow(data: Document) {
     actions.map((ac) => {
       edges.push({
         id: `${id}-${ac}`,
-        source: id,
         type: "step",
+        source: id,
         sourceHandle: "result_actions",
         target: ac,
         targetHandle: "action_owner",
       });
     });
+
+    /* Support old manifests */
+    if ((data.initial && data.initial.id === id) || (res as any).initial) {
+      edges.push({
+        id: `INITIAL-${id}`,
+        type: "step",
+        animated: true,
+        source: "INITIAL",
+        sourceHandle: "initial_target",
+        target: id,
+        targetHandle: "node_trigger",
+      });
+    }
   });
+
+  /* Support old manifests */
+  if (data.conditions)
+    data.conditions.map((cond) => {
+      const { id, condition, objective, target, value, node } = cond;
+
+      nodes.push({
+        id,
+        type: "conditional",
+        position: node.position,
+        origin: [0.5, 0.5],
+        data: {
+          condition,
+          objective,
+          target,
+          value,
+          handle: node.handle,
+        },
+      });
+
+      if (target.true) {
+        edges.push({
+          id: `${id}-${target.true}`,
+          type: "step",
+          animated: true,
+          source: id,
+          sourceHandle: "condition_true",
+          target: target.true,
+          targetHandle: "node_trigger",
+        });
+      }
+
+      if (target.false) {
+        edges.push({
+          id: `${id}-${target.false}`,
+          type: "step",
+          animated: true,
+          source: id,
+          sourceHandle: "condition_true",
+          target: target.false,
+          targetHandle: "node_trigger",
+        });
+      }
+
+      if (data.initial.id === id) {
+        edges.push({
+          id: `INITIAL-${id}`,
+          type: "step",
+          animated: true,
+          source: "INITIAL",
+          sourceHandle: "initial_target",
+          target: id,
+          targetHandle: "node_trigger",
+        });
+      }
+    });
 
   data.actions.map((act) => {
     const { id, label, target, node } = act;
@@ -153,7 +281,7 @@ function parseFlow(data: Document) {
       source: id,
       sourceHandle: "action_result",
       target: target,
-      targetHandle: "result_trigger",
+      targetHandle: "node_trigger",
     });
   });
 
@@ -162,20 +290,34 @@ function parseFlow(data: Document) {
 
 /* Rendering */
 
-function renderFlow(nodes: RenderNode[], edges: Edge[]) {
+function renderFlow(nodes: FlowNode[], edges: Edge[]) {
   return new Render(nodes, edges).generate();
 }
 
 /* Create */
 
-function createNode<T extends NodeType>(
+function createNode<T extends FlowNodeType>(
   type: T,
   position: XYPosition,
   id?: string
-): T extends "result" ? ResultNode : ActionNode {
-  let defaultData = {};
+): FlowNodeTypeRelation[T] {
+  let defaultData = {} as FlowNodeTypeRelation[T]["data"];
 
   switch (type) {
+    case "result":
+      defaultData = {
+        message: "",
+        preferred: "",
+        order: [],
+        close: { enabled: false, delay: 1000 },
+        executor: [],
+        handle: {
+          trigger: Position.Left,
+          actions: Position.Right,
+        },
+      };
+      break;
+
     case "action":
       defaultData = {
         label: "",
@@ -183,21 +325,21 @@ function createNode<T extends NodeType>(
           owner: Position.Left,
           result: Position.Right,
         },
-      } as ActionNode["data"];
+      };
       break;
 
-    case "result":
+    case "conditional":
       defaultData = {
-        initial: false,
-        message: "",
-        preferred: "",
-        order: [],
-        close: { enabled: false, delay: 1000 },
+        value: "",
+        condition: "equal",
+        objective: "",
         handle: {
           trigger: Position.Left,
-          actions: Position.Right,
+          true: Position.Right,
+          false: Position.Right,
         },
-      } as ResultNode["data"];
+      };
+      break;
   }
 
   return {
@@ -206,7 +348,7 @@ function createNode<T extends NodeType>(
     position,
     origin: [0.5, 0.5],
     data: defaultData,
-  } as T extends "result" ? ResultNode : ActionNode;
+  } as FlowNodeTypeRelation[T];
 }
 
 export default { renderFlow, parseFlow, createNode };

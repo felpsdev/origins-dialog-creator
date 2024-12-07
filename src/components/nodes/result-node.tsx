@@ -1,10 +1,14 @@
 import {
   Checkbox,
   Chip,
+  Dropdown,
   FormControl,
   FormLabel,
   IconButton,
   Input,
+  Menu,
+  MenuButton,
+  MenuItem,
   Option,
   Select,
   Textarea,
@@ -18,9 +22,14 @@ import {
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useCallback, useEffect } from "react";
-import { GoTrash } from "react-icons/go";
-import { ResultNode as ResultNodeType } from "../types";
-import SwitchableHandle from "./switchable-handle";
+import { GoPlus, GoTrash } from "react-icons/go";
+import {
+  ResultExecutorType,
+  ResultExecutorValueRelation,
+  ResultNode as ResultNodeType,
+} from "../../types";
+import Handle from "../switchable-handle";
+import ResultExecutor, { executorRelation } from "./result-executor";
 
 interface ResultNodeProps extends NodeProps {
   data: ResultNodeType["data"];
@@ -35,6 +44,7 @@ const ResultNode = (props: ResultNodeProps) => {
   const updateNodeInternals = useUpdateNodeInternals();
 
   /* Actions */
+
   const actions = useHandleConnections({
     type: "source",
     id: "result_actions",
@@ -66,12 +76,48 @@ const ResultNode = (props: ResultNodeProps) => {
     setNodes((nodes) => nodes.filter((row) => row.id !== id));
   }, [id, getEdges, getNode, setNodes, setEdges]);
 
+  /* Executors */
+
+  const handleCreateExecutor = useCallback(
+    (type: ResultExecutorType) => {
+      const defaultValue = type === "command" ? "" : { key: "", value: "" };
+
+      updateNodeData(id, {
+        executor: [...(data.executor || []), { type, value: defaultValue }],
+      });
+    },
+    [id, data, updateNodeData]
+  );
+
+  const handleModifyExecutor = useCallback(
+    (index: number, value: ResultExecutorValueRelation[ResultExecutorType]) => {
+      const executor = data.executor || [];
+      const target = executor.find((_, i) => i === index);
+
+      if (target) {
+        target.value = value;
+      }
+
+      updateNodeData(id, {
+        executor,
+      });
+    },
+    [id, data, updateNodeData]
+  );
+
+  const handleRemoveExecutor = useCallback(
+    (index: number) => {
+      updateNodeData(id, {
+        executor: (data.executor || []).filter((_, i) => i !== index),
+      });
+    },
+    [id, data, updateNodeData]
+  );
+
   return (
     <div className="bg-zinc-800 border-2 border-zinc-700 flex flex-col select-none rounded-md w-[300px] font-[inter]">
       <div className="pr-2 pl-4 py-2 flex bg-zinc-900 border-b-2 border-b-zinc-700 rounded-t-md items-center">
-        <span className="text-white text-lg font-bold">
-          {data.initial ? "Início" : "Resultado"}
-        </span>
+        <span className="text-white text-lg font-bold">Resultado</span>
         <IconButton
           sx={{ ml: "auto", mr: 0, borderRadius: 4 }}
           color="danger"
@@ -82,7 +128,7 @@ const ResultNode = (props: ResultNodeProps) => {
         </IconButton>
       </div>
 
-      <SwitchableHandle
+      <Handle
         label="Gatilho"
         position={handle.trigger}
         onPositionChange={(pos) => {
@@ -96,12 +142,16 @@ const ResultNode = (props: ResultNodeProps) => {
         }}
         handle={{
           type: "target",
-          id: "result_trigger",
-          isValidConnection: (conn) => conn.sourceHandle === "action_result",
+          id: "node_trigger",
+          isValidConnection: (conn) =>
+            conn.sourceHandle === "action_result" ||
+            conn.sourceHandle === "initial_target" ||
+            conn.sourceHandle?.includes("condition_") ||
+            false,
         }}
       />
 
-      <div className="flex flex-col gap-2.5 px-5 bg-black bg-opacity-20 py-4">
+      <div className="flex flex-col gap-2.5 px-5 bg-black bg-opacity-20 py-4 w-full">
         <FormControl size="sm">
           <FormLabel sx={{ lineHeight: "1", marginBottom: "8px" }}>
             Mensagem
@@ -182,7 +232,47 @@ const ResultNode = (props: ResultNodeProps) => {
           </FormControl>
         )}
 
-        {data.initial === false && actionsData.length === 0 && (
+        <div className="flex flex-col w-full gap-2">
+          <div className="flex w-full items-center">
+            <span className="text-xs text-[#f0f4f8]">Executores</span>
+
+            <Dropdown>
+              <MenuButton
+                slots={{ root: "button" }}
+                slotProps={{ root: { className: "ml-auto mr-0" } }}
+              >
+                <GoPlus className="text-[#f0f4f8]" />
+              </MenuButton>
+              <Menu>
+                {Object.entries(executorRelation).map((entry) => (
+                  <MenuItem
+                    onClick={() =>
+                      handleCreateExecutor(entry[0] as ResultExecutorType)
+                    }
+                    className="flex gap-2"
+                  >
+                    {entry[1].icon}
+                    {entry[1].label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Dropdown>
+          </div>
+
+          <div className="flex flex-col gap-2 w-full">
+            {(data.executor || []).map((exc, i) => (
+              <ResultExecutor
+                key={i}
+                type={exc.type}
+                value={exc.value}
+                onChange={(value) => handleModifyExecutor(i, value)}
+                onRemove={() => handleRemoveExecutor(i)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {actionsData.length === 0 && (
           <Checkbox
             checked={data.close.enabled}
             onChange={(evt) =>
@@ -221,7 +311,7 @@ const ResultNode = (props: ResultNodeProps) => {
       </div>
 
       {!data.close.enabled && (
-        <SwitchableHandle
+        <Handle
           label="Ações"
           position={handle.actions}
           onPositionChange={(pos) => {

@@ -9,11 +9,16 @@ import {
 } from "@xyflow/react";
 import { useCallback, useMemo } from "react";
 import { GoTrash } from "react-icons/go";
-import SwitchableHandle from "./switchable-handle";
+import { ActionNode as ActionNodeType } from "../../types";
+import Handle from "../switchable-handle";
 
-const ActionNode = (props: NodeProps) => {
+interface ActionNodeProps extends NodeProps {
+  data: ActionNodeType["data"];
+}
+
+const ActionNode = (props: ActionNodeProps) => {
   const { id, data } = props;
-  const { handle } = data as any;
+  const { handle } = data;
 
   const { updateNodeData, setNodes, setEdges, getNode, getEdges } =
     useReactFlow();
@@ -59,7 +64,7 @@ const ActionNode = (props: NodeProps) => {
         </IconButton>
       </div>
 
-      <SwitchableHandle
+      <Handle
         label="Proprietário"
         position={handle.owner}
         onPositionChange={(pos) => {
@@ -111,7 +116,7 @@ const ActionNode = (props: NodeProps) => {
           </div>
         )}
 
-        <SwitchableHandle
+        <Handle
           label="Resultado"
           position={handle.result}
           onPositionChange={(pos) => {
@@ -126,7 +131,9 @@ const ActionNode = (props: NodeProps) => {
           handle={{
             type: "source",
             id: "action_result",
-            isValidConnection: (conn) => conn.targetHandle === "result_trigger",
+            isValidConnection: (conn) =>
+              conn.targetHandle === "node_trigger" ||
+              conn.targetHandle === "node_trigger",
             isConnectable: result.length === 0,
           }}
         />

@@ -20,18 +20,20 @@ import {
   useRef,
   useState,
 } from "react";
-import { GoCodeSquare, GoCrossReference } from "react-icons/go";
-import { ActionNode, ResultNode } from "../types";
+import { GoCodeSquare, GoCrossReference, GoKey } from "react-icons/go";
+import { FlowNode } from "../types";
 import render from "../utils/render";
-import ActionNodeComponent from "./action-node";
-import ResultNodeComponent from "./result-node";
+import ActionNode from "./nodes/action-node";
+import ConditionalNode from "./nodes/conditional-node";
+import InitialNode from "./nodes/initial-node";
+import ResultNode from "./nodes/result-node";
 
 const storageKey = "saas-dialogs-cache";
 
 interface NodesProps {
-  nodes: (ResultNode | ActionNode)[];
-  setNodes: Dispatch<SetStateAction<(ResultNode | ActionNode)[]>>;
-  onNodesChange: OnNodesChange<ResultNode | ActionNode>;
+  nodes: FlowNode[];
+  setNodes: Dispatch<SetStateAction<FlowNode[]>>;
+  onNodesChange: OnNodesChange<FlowNode>;
   edges: Edge[];
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   onEdgesChange: OnEdgesChange<Edge>;
@@ -43,7 +45,12 @@ const Nodes = (props: NodesProps) => {
 
   const flowRef = useRef<HTMLDivElement>(null);
   const nodeTypes = useMemo(
-    () => ({ result: ResultNodeComponent, action: ActionNodeComponent }),
+    () => ({
+      result: ResultNode,
+      action: ActionNode,
+      conditional: ConditionalNode,
+      initial: InitialNode,
+    }),
     []
   );
 
@@ -57,9 +64,7 @@ const Nodes = (props: NodesProps) => {
           {
             ...connection,
             type: "smoothstep",
-            animated:
-              connection.sourceHandle === "action_result" &&
-              connection.targetHandle === "result_trigger",
+            animated: connection.targetHandle === "node_trigger",
           } as Connection,
           eds
         )
@@ -91,7 +96,7 @@ const Nodes = (props: NodesProps) => {
     }
   }, [nodes, edges, loaded]);
 
-  /* Handling */
+  /* Center */
 
   const handleGetCenterPoint = useCallback(() => {
     const bounding = flowRef.current?.getBoundingClientRect();
@@ -105,20 +110,13 @@ const Nodes = (props: NodesProps) => {
     return pos;
   }, [flowRef, screenToFlowPosition]);
 
+  /* Creation */
+
   const handleCreateResult = useCallback(() => {
     const pos = handleGetCenterPoint();
     if (!pos) return;
 
     const node = render.createNode("result", pos);
-    if (
-      nodes.filter(
-        (nd: any) => nd.type === "result" && nd.data.initial === true
-      ).length === 0
-    ) {
-      node.data.initial = true;
-      node.draggable = false;
-      node.position = { x: 0, y: 0 };
-    }
 
     setNodes((nds) => [...nds, node]);
     if (nodes.length === 0) {
@@ -131,6 +129,15 @@ const Nodes = (props: NodesProps) => {
     if (!pos) return;
 
     const node = render.createNode("action", pos);
+
+    setNodes((nds) => [...nds, node]);
+  }, [handleGetCenterPoint, setNodes]);
+
+  const handleCreateConditional = useCallback(() => {
+    const pos = handleGetCenterPoint();
+    if (!pos) return;
+
+    const node = render.createNode("conditional", pos);
 
     setNodes((nds) => [...nds, node]);
   }, [handleGetCenterPoint, setNodes]);
@@ -158,11 +165,19 @@ const Nodes = (props: NodesProps) => {
         >
           Criar Resultado
         </Button>
+
         <Button
           onClick={handleCreateAction}
           startDecorator={<GoCrossReference size={20} />}
         >
           Criar Ação
+        </Button>
+
+        <Button
+          onClick={handleCreateConditional}
+          startDecorator={<GoKey size={20} />}
+        >
+          Criar Condição
         </Button>
       </div>
     </ReactFlow>

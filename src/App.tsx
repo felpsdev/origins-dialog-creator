@@ -13,7 +13,7 @@ import { useRecoilState } from "recoil";
 import Nodes from "./components/nodes";
 import SettingsModal from "./components/settings-modal";
 import { Settings, settingsAtom } from "./store";
-import { ActionNode, Document, ResultNode } from "./types";
+import { Document, FlowNode } from "./types";
 import render from "./utils/render";
 
 function App() {
@@ -22,9 +22,7 @@ function App() {
   const flow = useReactFlow();
 
   /* Nodes/Edges */
-  const [nodes, setNodes, onNodesChange] = useNodesState<
-    ActionNode | ResultNode
-  >([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   /* Save */
@@ -52,12 +50,20 @@ function App() {
       return cancel("O diálogo não possui ações válidas para ser salvo.");
     }
 
-    const { actions, results } = render.renderFlow(nodes, edges);
+    const renderization = render.renderFlow(nodes, edges);
+    if (!renderization) {
+      return cancel(
+        "Não foi possível encontrar nenhuma ação conectada ao ínicio."
+      );
+    }
+
     const document = {
       npc: settings.npc,
       interaction: undefined as Settings["interaction"] | undefined,
-      actions,
-      results,
+      initial: renderization?.initial,
+      actions: renderization?.actions,
+      results: renderization?.results,
+      conditions: renderization?.conditions,
     };
 
     if (settings.interactionEnabled) {
@@ -159,7 +165,16 @@ function App() {
   /* Reset */
   const handleReset = useCallback(() => {
     setEdges([]);
-    setNodes([]);
+    setNodes([
+      {
+        id: "INITIAL",
+        type: "initial",
+        origin: [0.5, 0.5],
+        position: { x: 0, y: 0 },
+        draggable: false,
+        data: {},
+      },
+    ]);
   }, [setEdges, setNodes]);
 
   return (
@@ -172,7 +187,7 @@ function App() {
           size="sm"
           sx={{ height: "fit-content" }}
         >
-          v0.1.0
+          v0.1.2
         </Chip>
       </div>
 

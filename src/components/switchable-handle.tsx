@@ -1,15 +1,20 @@
-import { Handle, HandleProps, Position } from "@xyflow/react";
+import {
+  Handle as BaseHandle,
+  HandleProps as BaseHandleProps,
+  Position,
+} from "@xyflow/react";
 
-interface SwitchableHandleProps {
+interface HandleProps {
   label: string;
   className?: string;
-  handle?: Omit<HandleProps, "position">;
+  handle?: Omit<BaseHandleProps, "position">;
   position: Position.Left | Position.Right;
-  onPositionChange: (newPos: "left" | "right") => void;
+  onPositionChange?: (newPos: "left" | "right") => void;
 }
 
-const SwitchableHandle = (props: SwitchableHandleProps) => {
+const Handle = (props: HandleProps) => {
   const { label, handle, position, onPositionChange } = props;
+
   return (
     <div
       className="flex gap-2 py-2 items-center w-full"
@@ -18,8 +23,8 @@ const SwitchableHandle = (props: SwitchableHandleProps) => {
         flexDirection: position === Position.Right ? "row-reverse" : "row",
       }}
     >
-      <Handle
-        {...(handle as HandleProps)}
+      <BaseHandle
+        {...(handle as BaseHandleProps)}
         position={position}
         className="relative w-2.5 h-2.5 !top-0 transform-none bg-zinc-600 border-2 border-zinc-500 m-0 rounded-full"
         style={position === Position.Left ? { left: -6.5 } : { right: -5.5 }}
@@ -27,6 +32,7 @@ const SwitchableHandle = (props: SwitchableHandleProps) => {
       <span
         className="text-white text-sm cursor-pointer"
         onClick={() =>
+          onPositionChange &&
           onPositionChange(
             position === Position.Left ? Position.Right : Position.Left
           )
@@ -38,4 +44,4 @@ const SwitchableHandle = (props: SwitchableHandleProps) => {
   );
 };
 
-export default SwitchableHandle;
+export default Handle;
