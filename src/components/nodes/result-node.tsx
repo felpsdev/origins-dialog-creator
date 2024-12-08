@@ -80,7 +80,16 @@ const ResultNode = (props: ResultNodeProps) => {
 
   const handleCreateExecutor = useCallback(
     (type: ResultExecutorType) => {
-      const defaultValue = type === "command" ? "" : { key: "", value: "" };
+      let defaultValue;
+
+      switch (type) {
+        case "dialog_store":
+          defaultValue = { key: "", value: "" };
+          break;
+
+        default:
+          defaultValue = "";
+      }
 
       updateNodeData(id, {
         executor: [...(data.executor || []), { type, value: defaultValue }],
@@ -246,6 +255,7 @@ const ResultNode = (props: ResultNodeProps) => {
               <Menu>
                 {Object.entries(executorRelation).map((entry) => (
                   <MenuItem
+                    key={entry[0]}
                     onClick={() =>
                       handleCreateExecutor(entry[0] as ResultExecutorType)
                     }

@@ -58,7 +58,7 @@ export interface Condition {
 
 export type FlowNode = ResultNode | ActionNode | ConditionalNode | Node;
 
-export type FlowNodeType = "result" | "action" | "conditional";
+export type FlowNodeType = keyof FlowNodeTypeRelation;
 
 export interface FlowNodeTypeRelation {
   result: ResultNode;
@@ -68,11 +68,14 @@ export interface FlowNodeTypeRelation {
 
 /* Result Node */
 
-export type ResultExecutorType = "command" | "dialog_store";
+export type ResultExecutorType = keyof ResultExecutorValueRelation;
 
 export interface ResultExecutorValueRelation {
   command: string;
   dialog_store: { key: string; value: string | number | boolean | null };
+  set_coins: number | string;
+  set_gems: number | string;
+  open_market: string;
 }
 
 export interface ResultExecutor<T extends ResultExecutorType> {
