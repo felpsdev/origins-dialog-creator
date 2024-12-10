@@ -241,7 +241,7 @@ function parseFlow(data: Document) {
           type: "step",
           animated: true,
           source: id,
-          sourceHandle: "condition_true",
+          sourceHandle: "condition_false",
           target: target.false,
           targetHandle: "node_trigger",
         });
