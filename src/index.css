@@ -8,15 +8,3 @@ html,
   margin: 0;
   height: 100%;
 }
-
-.react-flow__node {
-  @apply rounded-md;
-}
-
-.react-flow__node.selectable:focus {
-  box-shadow: 0px 0px 0px 2px theme(colors.blue.500);
-}
-
-.react-flow__node.selectable:focus:active {
-  box-shadow: 0px 0px 0px 2px theme(colors.blue.400);
-}

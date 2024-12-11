@@ -187,7 +187,7 @@ function App() {
           size="sm"
           sx={{ height: "fit-content" }}
         >
-          v0.1.2
+          v0.1.3
         </Chip>
       </div>
 

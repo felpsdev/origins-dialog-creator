@@ -4,6 +4,7 @@ import {
   Background,
   Connection,
   Edge,
+  Node,
   OnConnect,
   OnEdgesChange,
   OnNodesChange,
@@ -25,6 +26,7 @@ import { FlowNode } from "../types";
 import render from "../utils/render";
 import ActionNode from "./nodes/action-node";
 import ConditionalNode from "./nodes/conditional-node";
+import CopyAction from "./nodes/copy-action";
 import InitialNode from "./nodes/initial-node";
 import ResultNode from "./nodes/result-node";
 
@@ -84,8 +86,8 @@ const Nodes = (props: NodesProps) => {
       localStorage.getItem(storageKey) as string
     );
 
-    if (nodes) setNodes(nodes);
-    if (edges) setEdges(edges.map((e: Edge) => ({ ...e, type: "step" })));
+    if (nodes) setNodes(nodes.filter((node: Node) => !!node.id));
+    if (edges) setEdges(edges.map((e: Edge) => ({ ...e, type: "smoothstep" })));
 
     setLoaded(true);
   }, []);
@@ -158,7 +160,8 @@ const Nodes = (props: NodesProps) => {
       fitView
     >
       <Background />
-      <div className="flex absolute right-5 bottom-5 p-2 gap-3 z-10">
+      <CopyAction />
+      <div className="flex absolute right-1 bottom-1 p-2 gap-2 z-10">
         <Button
           onClick={handleCreateResult}
           startDecorator={<GoCodeSquare size={20} />}

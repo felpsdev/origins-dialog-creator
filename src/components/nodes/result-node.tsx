@@ -23,6 +23,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect } from "react";
 import { GoPlus, GoTrash } from "react-icons/go";
+import colors from "tailwindcss/colors";
 import {
   ResultExecutorType,
   ResultExecutorValueRelation,
@@ -36,7 +37,7 @@ interface ResultNodeProps extends NodeProps {
 }
 
 const ResultNode = (props: ResultNodeProps) => {
-  const { id, data } = props;
+  const { id, data, selected } = props;
   const { handle } = data;
 
   const { updateNodeData, setNodes, setEdges, getNode, getEdges } =
@@ -124,7 +125,10 @@ const ResultNode = (props: ResultNodeProps) => {
   );
 
   return (
-    <div className="bg-zinc-800 border-2 border-zinc-700 flex flex-col select-none rounded-md w-[300px] font-[inter]">
+    <div
+      className="bg-zinc-800 border-2 flex flex-col select-none rounded-md w-[300px] font-[inter]"
+      style={{ borderColor: selected ? colors.blue[500] : colors.zinc[700] }}
+    >
       <div className="pr-2 pl-4 py-2 flex bg-zinc-900 border-b-2 border-b-zinc-700 rounded-t-md items-center">
         <span className="text-white text-lg font-bold">Resultado</span>
         <IconButton
