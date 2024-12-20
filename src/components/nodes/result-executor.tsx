@@ -1,8 +1,10 @@
-import { Input } from "@mui/joy";
+import { Input, Option, Select } from "@mui/joy";
 import { ReactNode, useMemo } from "react";
 import { GoCommandPalette, GoDatabase, GoX } from "react-icons/go";
 import { LiaCoinsSolid, LiaGemSolid } from "react-icons/lia";
-import { PiStorefront } from "react-icons/pi";
+import { PiImagesSquare, PiStorefront } from "react-icons/pi";
+import { useRecoilState } from "recoil";
+import { textureSetAtom } from "../../store";
 import { ResultExecutorType, ResultExecutorValueRelation } from "../../types";
 import parser from "../../utils/parser";
 
@@ -21,6 +23,36 @@ interface ExecutorRelationRow {
     onChange: (value: ResultExecutorValueRelation[ResultExecutorType]) => void
   ) => ReactNode;
 }
+
+/* Apply Texture Component */
+
+interface ApplyTextureProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const ApplyTexture = (props: ApplyTextureProps) => {
+  const { value, onChange } = props;
+  const [textureSet] = useRecoilState(textureSetAtom);
+
+  return (
+    <Select
+      size="sm"
+      variant="plain"
+      sx={{ borderRadius: "2px" }}
+      value={value}
+      onChange={(_, state) => onChange(state as string)}
+    >
+      {textureSet.map((row, i) => (
+        <Option key={i} value={row.id}>
+          {row.name}
+        </Option>
+      ))}
+    </Select>
+  );
+};
+
+/* Relation */
 
 export const executorRelation = {
   command: {
@@ -79,6 +111,15 @@ export const executorRelation = {
           }
         />
       </div>
+    ),
+  },
+  apply_texture: {
+    label: "Aplicar Textura",
+    icon: (
+      <PiImagesSquare className="bg-indigo-600 text-indigo-500 bg-opacity-50 p-1 rounded-sm text-2xl min-w-fit" />
+    ),
+    component: (value: string, onChange: (value: string) => void) => (
+      <ApplyTexture value={value} onChange={onChange} />
     ),
   },
   set_coins: {

@@ -1,12 +1,14 @@
 import { Node, Position, XYPosition } from "@xyflow/react";
-import { Settings } from "./store";
+import { Settings, Texture } from "./store";
 
 export interface Document {
   npc: string;
+  npcPosition?: "sit" | "stand";
   interaction?: Settings["interaction"];
   actions: Action[];
   results: Result[];
   conditions: Condition[];
+  textureSet?: Texture[];
   initial: {
     id: string;
     type: "result" | "condition";

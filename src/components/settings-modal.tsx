@@ -1,29 +1,41 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Checkbox,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
-  FormHelperText,
-  FormLabel,
+  IconButton,
   Input,
   Modal,
-  ModalClose,
   ModalDialog,
+  Option,
+  Select,
 } from "@mui/joy";
 import { useCallback, useEffect } from "react";
+import { GoPlus, GoTrash, GoX } from "react-icons/go";
 import { useRecoilState, useResetRecoilState } from "recoil";
-import { settingsAtom } from "../store";
+import { settingsAtom, textureSetAtom } from "../store";
+import SettingsField from "./settings-field";
 
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+const animations = [
+  { value: "stand", label: "De Pé" },
+  { value: "sit", label: "Sentado" },
+];
+
 const SettingsModal = (props: SettingsModalProps) => {
   const { open, onClose } = props;
   const [settings, setSettings] = useRecoilState(settingsAtom);
+  const [textureSet, setTextureSet] = useRecoilState(textureSetAtom);
   const resetSettings = useResetRecoilState(settingsAtom);
+
+  /* Location */
 
   const handleChangeLocation = useCallback(
     (
@@ -44,42 +56,93 @@ const SettingsModal = (props: SettingsModalProps) => {
     [setSettings]
   );
 
+  /* Texture Set */
+
+  const handleCreateTexture = useCallback(
+    () =>
+      setTextureSet((state) => [
+        ...state,
+        state.length === 0
+          ? { id: crypto.randomUUID(), name: "default", data: "walking" }
+          : { id: crypto.randomUUID(), name: "", data: "" },
+      ]),
+    [setTextureSet]
+  );
+
+  const handleRemoveTexture = useCallback(
+    (index: number) =>
+      setTextureSet((state) => state.filter((_, i) => i !== index)),
+    [setTextureSet]
+  );
+
+  const handleModifyTexture = useCallback(
+    (index: number, field: string, value: string) =>
+      setTextureSet((state) =>
+        state.map((row, i) => {
+          const object = { ...row };
+          if (i === index) {
+            object[field as "data" | "name"] = value;
+          }
+
+          return object;
+        })
+      ),
+    [setTextureSet]
+  );
+
   useEffect(() => {
     if (!settings.interaction) resetSettings();
   }, [settings, resetSettings]);
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog variant="outlined" sx={{ width: "500px" }}>
-        <ModalClose />
-        <DialogTitle>Configurações</DialogTitle>
+      <ModalDialog
+        variant="outlined"
+        sx={{ width: "500px", padding: 0 }}
+        slotProps={{
+          root: {
+            className:
+              "!border-2 !border-zinc-700 rounded-md !bg-zinc-800 !gap-0",
+          },
+        }}
+      >
+        <DialogTitle
+          slotProps={{
+            root: {
+              className:
+                "w-full h-fit px-4 py-3 bg-zinc-900 border-b-2 border-b-zinc-700 rounded-t-md flex items-center",
+            },
+          }}
+        >
+          Configurações
+          <IconButton onClick={onClose} className="!ml-auto">
+            <GoX size={20} />
+          </IconButton>
+        </DialogTitle>
 
-        <Divider />
+        <DialogContent
+          slotProps={{ root: { className: "!p-0 !py-3 !mt-0 !gap-3" } }}
+        >
+          <SettingsField
+            title="Nome do diálogo"
+            description="Nome que será considerado o 'id' do diálogo"
+          >
+            <Input
+              placeholder="Digite aqui"
+              value={settings.name}
+              onChange={(event) =>
+                setSettings((state) => ({
+                  ...state,
+                  name: event.currentTarget.value,
+                }))
+              }
+            />
+          </SettingsField>
 
-        <DialogContent>
-          <div className="flex flex-col gap-4 w-full">
-            <FormControl>
-              <FormLabel>Nome do diálogo</FormLabel>
-
-              <Input
-                placeholder="Digite aqui"
-                value={settings.name}
-                onChange={(event) =>
-                  setSettings((state) => ({
-                    ...state,
-                    name: event.currentTarget.value,
-                  }))
-                }
-              />
-
-              <FormHelperText>
-                Nome que sera considerado o "id" do dialogo
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl required disabled={!settings.interactionEnabled}>
-              <div className="flex w-full">
-                <FormLabel>Posição</FormLabel>
+          <SettingsField
+            title={
+              <div className="flex items-center">
+                Posição
                 <Checkbox
                   onChange={(event) =>
                     setSettings((state) => ({
@@ -92,12 +155,16 @@ const SettingsModal = (props: SettingsModalProps) => {
                   className="ml-auto mr-0.5"
                 />
               </div>
-
+            }
+            description="Posição no mundo selecionado do minecraft"
+          >
+            <div className="flex flex-col gap-2">
               <div className="flex w-full gap-2">
                 <Input
                   placeholder="X"
                   type="number"
-                  value={settings.interaction.location.x}
+                  value={settings.interaction.location.x?.toString()}
+                  disabled={!settings.interactionEnabled}
                   onChange={(event) =>
                     handleChangeLocation(
                       "x",
@@ -108,7 +175,8 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="Y"
                   type="number"
-                  value={settings.interaction.location.y}
+                  value={settings.interaction.location.y?.toString()}
+                  disabled={!settings.interactionEnabled}
                   onChange={(event) =>
                     handleChangeLocation(
                       "y",
@@ -119,7 +187,8 @@ const SettingsModal = (props: SettingsModalProps) => {
                 <Input
                   placeholder="Z"
                   type="number"
-                  value={settings.interaction.location.z}
+                  value={settings.interaction.location.z?.toString()}
+                  disabled={!settings.interactionEnabled}
                   onChange={(event) =>
                     handleChangeLocation(
                       "z",
@@ -127,10 +196,13 @@ const SettingsModal = (props: SettingsModalProps) => {
                     )
                   }
                 />
+              </div>
+              <div className="flex gap-2">
                 <Input
                   placeholder="Rotação"
                   type="number"
-                  value={settings.interaction.location.rotation}
+                  value={settings.interaction.location.rotation?.toString()}
+                  disabled={!settings.interactionEnabled}
                   onChange={(event) =>
                     handleChangeLocation(
                       "rotation",
@@ -138,67 +210,166 @@ const SettingsModal = (props: SettingsModalProps) => {
                     )
                   }
                 />
+                <Input
+                  placeholder="Mundo"
+                  value={settings.interaction.location.world}
+                  disabled={!settings.interactionEnabled}
+                  onChange={(event) =>
+                    handleChangeLocation("world", event.currentTarget.value)
+                  }
+                />
               </div>
+            </div>
+          </SettingsField>
 
-              <FormHelperText>Posição no mundo do minecraft</FormHelperText>
-            </FormControl>
-
-            <div className="flex gap-2 w-full">
-              <div className="w-[55%]">
-                <FormControl disabled={!settings.interactionEnabled}>
-                  <FormLabel>Distancia de Renderização</FormLabel>
+          <Accordion>
+            <AccordionSummary
+              slotProps={{ button: { className: "!px-3 !py-1" } }}
+            >
+              Opções do NPC
+            </AccordionSummary>
+            <AccordionDetails
+              slotProps={{
+                root: {
+                  className: "items-center",
+                },
+                content: {
+                  className: "gap-3",
+                },
+              }}
+            >
+              <div className="flex w-full">
+                <SettingsField
+                  title="Id"
+                  description="Id do NPC que será requisitado"
+                >
                   <Input
                     placeholder="Digite aqui"
-                    type="number"
-                    value={settings.interaction.renderDistance}
+                    value={settings.npc}
+                    disabled={!settings.interactionEnabled}
+                    size="sm"
                     onChange={(event) =>
                       setSettings((state) => ({
                         ...state,
-                        interaction: {
-                          ...state.interaction,
-                          renderDistance: parseFloat(event.currentTarget.value),
-                        },
+                        npc: event.currentTarget.value,
                       }))
                     }
                   />
-                  <FormHelperText>Renderização da interação</FormHelperText>
-                </FormControl>
-              </div>
+                </SettingsField>
 
-              <div className="w-[45%]">
-                <FormControl required disabled={!settings.interactionEnabled}>
-                  <FormLabel>Mundo</FormLabel>
-                  <Input
-                    placeholder="Digite aqui"
-                    value={settings.interaction.location.world}
-                    onChange={(event) =>
-                      handleChangeLocation("world", event.currentTarget.value)
+                <Divider orientation="vertical" />
+
+                <SettingsField
+                  title="Animação"
+                  description="Animação do citizen no mundo"
+                >
+                  <Select
+                    value={settings.npcPosition}
+                    onChange={(_, selected) =>
+                      setSettings((state) => ({
+                        ...state,
+                        npcPosition: selected || "sit",
+                      }))
                     }
-                  />
-                  <FormHelperText>Mundo da da posição</FormHelperText>
-                </FormControl>
+                    placeholder="Selecione"
+                    size="sm"
+                  >
+                    {animations.map((row) => (
+                      <Option key={row.value} value={row.value}>
+                        {row.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </SettingsField>
               </div>
-            </div>
 
-            <FormControl required disabled={!settings.interactionEnabled}>
-              <FormLabel>Id no NPC</FormLabel>
+              <SettingsField
+                title="Distancia de Renderização"
+                description="Renderização da interação"
+              >
+                <Input
+                  placeholder="Digite aqui"
+                  type="number"
+                  size="sm"
+                  value={settings.interaction.renderDistance}
+                  disabled={!settings.interactionEnabled}
+                  onChange={(event) =>
+                    setSettings((state) => ({
+                      ...state,
+                      interaction: {
+                        ...state.interaction,
+                        renderDistance: parseFloat(event.currentTarget.value),
+                      },
+                    }))
+                  }
+                />
+              </SettingsField>
 
-              <Input
-                placeholder="Digite aqui"
-                value={settings.npc}
-                onChange={(event) =>
-                  setSettings((state) => ({
-                    ...state,
-                    npc: event.currentTarget.value,
-                  }))
+              <SettingsField
+                title={
+                  <div className="flex items-center">
+                    Set de Texturas
+                    <GoPlus
+                      className="ml-auto mr-0 cursor-pointer"
+                      size={20}
+                      onClick={handleCreateTexture}
+                    />
+                  </div>
                 }
-              />
+                description="Crie texturas no diálogo para criar dinâmicas"
+              >
+                <div className="flex flex-col gap-1 overflow-y-auto max-h-40 pr-2">
+                  {textureSet.map((row, i) => (
+                    <div
+                      key={i}
+                      className="flex p-2 rounded-sm bg-zinc-700 items-center gap-2"
+                    >
+                      <Input
+                        size="sm"
+                        placeholder="Nome"
+                        variant="plain"
+                        sx={{ borderRadius: "2px", width: "30%" }}
+                        value={row.name}
+                        onChange={(evt) =>
+                          row.name !== "default" &&
+                          handleModifyTexture(
+                            i,
+                            "name",
+                            evt.currentTarget.value
+                          )
+                        }
+                      />
 
-              <FormHelperText>
-                Npc relacionado ao diálogo e as coordenadas
-              </FormHelperText>
-            </FormControl>
-          </div>
+                      <Input
+                        size="sm"
+                        placeholder="Textura"
+                        variant="plain"
+                        sx={{ borderRadius: "2px", width: "70%" }}
+                        value={row.data}
+                        onChange={(evt) =>
+                          handleModifyTexture(
+                            i,
+                            "data",
+                            evt.currentTarget.value
+                          )
+                        }
+                      />
+
+                      {row.name !== "default" && (
+                        <IconButton
+                          size="sm"
+                          color="danger"
+                          onClick={() => handleRemoveTexture(i)}
+                        >
+                          <GoTrash />
+                        </IconButton>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SettingsField>
+            </AccordionDetails>
+          </Accordion>
         </DialogContent>
       </ModalDialog>
     </Modal>

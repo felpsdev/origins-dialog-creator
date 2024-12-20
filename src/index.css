@@ -8,3 +8,7 @@ html,
   margin: 0;
   height: 100%;
 }
+
+.font-jetbrains {
+  font-family: "JetBrains Mono Variable";
+}

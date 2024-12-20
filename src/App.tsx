@@ -12,20 +12,23 @@ import { GoDownload, GoFoldUp, GoGear, GoMilestone } from "react-icons/go";
 import { useRecoilState } from "recoil";
 import Nodes from "./components/nodes";
 import SettingsModal from "./components/settings-modal";
-import { Settings, settingsAtom } from "./store";
+import { Settings, settingsAtom, textureSetAtom } from "./store";
 import { Document, FlowNode } from "./types";
 import render from "./utils/render";
 
 function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useRecoilState(settingsAtom);
+  const [textureSet, setTextureSet] = useRecoilState(textureSetAtom);
   const flow = useReactFlow();
 
   /* Nodes/Edges */
+
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   /* Save */
+
   const [saving, setSaving] = useState(false);
 
   const handleSaveDialog = useCallback(() => {
@@ -50,6 +53,13 @@ function App() {
       return cancel("O diálogo não possui ações válidas para ser salvo.");
     }
 
+    if (
+      textureSet.length === 0 ||
+      !textureSet.find((row) => row.name === "default")
+    ) {
+      return cancel("O diálogo não possui uma textura padrão.");
+    }
+
     const renderization = render.renderFlow(nodes, edges);
     if (!renderization) {
       return cancel(
@@ -59,11 +69,13 @@ function App() {
 
     const document = {
       npc: settings.npc,
+      npcPosition: settings.npcPosition,
       interaction: undefined as Settings["interaction"] | undefined,
       initial: renderization?.initial,
       actions: renderization?.actions,
       results: renderization?.results,
       conditions: renderization?.conditions,
+      textureSet,
     };
 
     if (settings.interactionEnabled) {
@@ -79,9 +91,10 @@ function App() {
 
     toast.success("Arquivo do diálogo foi baixado.");
     setSaving(false);
-  }, [settings, edges, nodes, saving]);
+  }, [settings, edges, textureSet, nodes, saving]);
 
   /* Import */
+
   const [importing, setImporting] = useState(false);
 
   const handleImportDialog = useCallback(() => {
@@ -121,6 +134,7 @@ function App() {
         ...state,
         name: file.name.split(".")[0],
         npc: data.npc || "",
+        npcPosition: data.npcPosition || "stand",
       }));
 
       if (data.interaction) {
@@ -145,6 +159,10 @@ function App() {
         }));
       }
 
+      if (data.textureSet) {
+        setTextureSet(data.textureSet);
+      }
+
       /* Nodes, Edges */
       const { nodes, edges } = render.parseFlow(data);
 
@@ -160,9 +178,18 @@ function App() {
     input.onerror = () => setImporting(false);
 
     input.click();
-  }, [importing, flow, setImporting, setEdges, setNodes, setSettings]);
+  }, [
+    importing,
+    flow,
+    setImporting,
+    setEdges,
+    setNodes,
+    setSettings,
+    setTextureSet,
+  ]);
 
   /* Reset */
+
   const handleReset = useCallback(() => {
     setEdges([]);
     setNodes([
@@ -191,7 +218,7 @@ function App() {
         </Chip>
       </div>
 
-      <div className="flex flex-col gap-2 h-full overflow-y-auto">
+      <div className="flex flex-col gap-2 h-full">
         <div className="flex w-full">
           <Typography level="h4">Roteiro do Diálogo</Typography>
           <div className="flex gap-2 !ml-auto !mr-0">

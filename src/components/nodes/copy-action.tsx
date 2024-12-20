@@ -21,8 +21,10 @@ interface SelectionNode {
 const colorTypeRelation = {
   result: colors.blue[500],
   action: colors.indigo[500],
-  conditional: colors.rose[500],
+  conditional: colors.emerald[500],
 };
+
+const safeTags = ["TEXTAREA", "INPUT"];
 
 function CopyAction() {
   const [selected, setSelected] = useState<SelectionNode[]>([]);
@@ -35,12 +37,14 @@ function CopyAction() {
   const onChange = useCallback(
     (props: { nodes: Node[] }) => {
       setSelected(
-        props.nodes.map((node) => ({
-          type: node.type,
-          position: node.position,
-          data: node.data,
-          sourceId: node.id,
-        }))
+        props.nodes
+          .filter((node) => node.type !== "initial")
+          .map((node) => ({
+            type: node.type,
+            position: node.position,
+            data: node.data,
+            sourceId: node.id,
+          }))
       );
 
       const ids = props.nodes.map((node) => node.id);
@@ -80,6 +84,12 @@ function CopyAction() {
 
   useEffect(() => {
     if (ctrlPlusCPressed && selected.length > 0) {
+      if (
+        document.activeElement &&
+        safeTags.includes(document.activeElement.tagName)
+      )
+        return;
+
       setCopied(
         selected.map((row) => ({
           type: row.type,
@@ -95,6 +105,12 @@ function CopyAction() {
 
   useEffect(() => {
     if (ctrlPlusVPressed) {
+      if (
+        document.activeElement &&
+        safeTags.includes(document.activeElement.tagName)
+      )
+        return;
+
       const sources = copied.map((row) => row.sourceId);
 
       reactFlow.setNodes((state) => [

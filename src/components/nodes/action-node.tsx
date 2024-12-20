@@ -113,7 +113,8 @@ const ActionNode = (props: ActionNodeProps) => {
             <Chip
               color="danger"
               size="sm"
-              sx={{ fontFamily: "jetbrains mono", borderRadius: 2 }}
+              sx={{ borderRadius: 2 }}
+              slotProps={{ label: { className: "font-jetbrains" } }}
             >
               AÇÃO SEM RESULTADO
             </Chip>

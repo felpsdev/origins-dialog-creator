@@ -81,7 +81,7 @@ const ConditionalNode = (props: ConditionalNodeProps) => {
   return (
     <div
       className="bg-zinc-800 border-2 flex flex-col select-none rounded-md min-w-[300px] font-[inter]"
-      style={{ borderColor: selected ? colors.rose[500] : colors.zinc[700] }}
+      style={{ borderColor: selected ? colors.emerald[600] : colors.zinc[700] }}
     >
       <div className="pr-2 pl-4 py-2 flex bg-zinc-900 border-b-2 border-b-zinc-700 rounded-t-md">
         <span className="text-white text-lg font-bold">Condição</span>
