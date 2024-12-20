@@ -161,6 +161,10 @@ function App() {
 
       if (data.textureSet) {
         setTextureSet(data.textureSet);
+      } else {
+        setTextureSet([
+          { id: crypto.randomUUID(), name: "default", data: "walking" },
+        ]);
       }
 
       /* Nodes, Edges */
